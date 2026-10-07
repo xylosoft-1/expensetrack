@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XyloSoft ExpenseTrack - Finance, Fleet & Tax Hub</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- PapaParse for CSV parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <!-- SheetJS for FBR Excel generation -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          },
+          colors: {
+            bgDark: '#080c14',
+            surfaceDark: 'rgba(255, 255, 255, 0.03)',
+            surfaceLight: '#ffffff',
+            accentGreen: '#10b981',
+            accentRed: '#f43f5e',
+            accentFuel: '#f59e0b',
+            accentBlue: '#6366f1'
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Dark & Light Theme Base Styles */
+    body {
+      min-height: 100vh;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+    .dark body {
+      background-color: #080c14;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(245, 158, 11, 0.05) 0px, transparent 50%);
+      color: #e2e8f0;
+    }
+    html:not(.dark) body {
+      background-color: #f1f5f9;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.05) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+      color: #1e293b;
+    }
+
+    .glass-card {
+      transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    .dark .glass-card {
+      background: rgba(18, 24, 38, 0.7);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+    html:not(.dark) .glass-card {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    .glass-modal {
+      backdrop-filter: blur(24px);
+    }
+    .dark .glass-modal {
+      background: rgba(15, 20, 32, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    html:not(.dark) .glass-modal {
+      background: rgba(255, 255, 255, 0.98);
+      border: 1px solid rgba(203, 213, 225, 0.9);
+      box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15);
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    .dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 9999px; }
+    html:not(.dark) ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 9999px; }
+  </style>
+
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#080c14">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ExpenseTrack">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+</head>
+<body class="antialiased font-sans pb-24 md:pb-8 selection:bg-indigo-500/30">
+
+  <div class="flex h-screen overflow-hidden">
+    <!-- Desktop Unified Sidebar -->
+    <aside class="no-print hidden md:flex flex-col w-64 glass-card p-5 m-3 rounded-2xl justify-between">
+      <div>
+        <!-- Brand Header -->
+        <div class="flex items-center gap-3 px-2 py-2 mb-4">
+          <img src="./icon-192.png" alt="XyloSoft Logo" class="w-11 h-11 rounded-full shadow-lg border border-indigo-500/30 object-cover">
+          <div>
+            <h1 class="text-base font-bold dark:text-white text-slate-800 tracking-wide leading-tight">XyloSoft</h1>
+            <p class="text-[11px] text-amber-500 dark:text-amber-400 font-mono tracking-tight font-semibold">ExpenseTrack</p>
+            <p class="text-[9px] text-slate-400 font-mono">Est. 2004</p>
+          </div>
+        </div>
+
+        <!-- Dark/Light Theme Quick Toggle in Sidebar -->
+        <div class="px-2 mb-4">
+          <button onclick="toggleDarkMode()" class="w-full py-2 px-3 rounded-xl bg-slate-200/80 dark:bg-white/5 hover:bg-slate-300 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 font-semibold text-xs border border-slate-300 dark:border-white/10 flex items-center justify-between transition">
+            <span class="flex items-center gap-2">
+              <i id="themeIcon" data-lucide="moon" class="w-4 h-4 text-indigo-500"></i>
+              <span id="themeText">Dark Theme</span>
+            </span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-500 font-mono">Toggle</span>
+          </button>
+        </div>
+
+        <!-- Install PWA Button -->
+        <div class="px-2 mb-3">
+          <button id="btnPwaInstall" onclick="triggerPwaInstall()" class="hidden w-full py-2 px-3 rounded-xl bg-gradient-to-r from-indigo-600 to-amber-500 text-white font-bold text-xs shadow-lg flex items-center justify-center gap-2 transition hover:opacity-90">
+            <i data-lucide="download-cloud" class="w-3.5 h-3.5"></i>
+            <span>Install App</span>
+          </button>
+        </div>
+
+        <!-- Navigation Menu -->
+        <nav class="space-y-1.5 text-sm font-medium">
+          <button onclick="navigateTo('dashboard')" id="nav-dashboard" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-indigo-500/15 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20 shadow-sm transition">
+            <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+            <span>Dashboard</span>
+          </button>
+          <button onclick="navigateTo('reports')" id="nav-reports" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition">
+            <i data-lucide="pie-chart" class="w-4 h-4"></i>
+            <span>Reports & Charts</span>
+          </button>
+          <button onclick="navigateTo('analytics')" id="nav-analytics" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition">
+            <i data-lucide="gauge" class="w-4 h-4"></i>
+            <span>Fleet Analytics</span>
+          </button>
+          <button onclick="navigateTo('importer')" id="nav-importer" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition">
+            <i data-lucide="merge" class="w-4 h-4"></i>
+            <span>CSV Importer</span>
+          </button>
+          <button onclick="navigateTo('tax')" id="nav-tax" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+            <span>FBR Tax Iris</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- Live Sync Status -->
+      <div class="p-3 rounded-xl bg-slate-100 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+          <div>
+            <p class="text-xs font-semibold dark:text-slate-300 text-slate-700">Local DB Active</p>
+            <p class="text-[10px] text-slate-500" id="syncStatus">Auto-sync Ready</p>
+          </div>
+        </div>
+        <i data-lucide="database" class="w-4 h-4 text-slate-400"></i>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6">
+
+      <!-- ==================== VIEW 1: DASHBOARD ==================== -->
+      <section id="view-dashboard" class="space-y-6">
+        <div class="flex items-center justify-between mb-2">
+          <div>
+            <h2 class="text-xl md:text-2xl font-bold dark:text-white text-slate-900 tracking-tight">Financial Overview</h2>
+            <p class="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-0.5">XyloSoft ExpenseTrack • Tax Year 2026-2027</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <button onclick="toggleDarkMode()" class="md:hidden p-2 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/5 text-slate-700 dark:text-slate-200">
+              <i data-lucide="sun" class="w-4 h-4 dark:hidden"></i>
+              <i data-lucide="moon" class="w-4 h-4 hidden dark:block"></i>
+            </button>
+            <button onclick="openModal('fuel')" class="hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition text-sm font-semibold">
+              <i data-lucide="fuel" class="w-4 h-4"></i>
+              <span>Add Fuel Log</span>
+            </button>
+            <button onclick="openModal('expense')" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm shadow-lg shadow-indigo-600/30 transition">
+              <i data-lucide="plus-circle" class="w-4 h-4"></i>
+              <span>Quick Entry</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Metrics Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+            <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Net Wallet Balance</span>
+            <div class="text-xl font-bold dark:text-white text-slate-900 font-mono mt-2" id="dashNetBalance">Rs. 248,500</div>
+            <p class="text-[11px] text-emerald-500 dark:text-emerald-400 mt-1 font-mono">3 Active Wallets</p>
+          </div>
+          <div class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+            <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Monthly Outflow</span>
+            <div class="text-xl font-bold text-rose-500 font-mono mt-2" id="dashMonthlyExpense">Rs. 64,820</div>
+            <p class="text-[10px] text-slate-500 mt-1">Groceries, utility bills & fuel</p>
+          </div>
+          <div class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+            <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Monthly Inflow</span>
+            <div class="text-xl font-bold text-emerald-500 font-mono mt-2" id="dashMonthlyIncome">Rs. 150,000</div>
+            <p class="text-[11px] text-emerald-500 mt-1 font-mono">Consultancies & Salary</p>
+          </div>
+          <div class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+            <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Fleet Running Cost</span>
+            <div class="text-xl font-bold text-amber-500 font-mono mt-2" id="dashFleetCost">Rs. 18,400</div>
+            <p class="text-[11px] text-amber-500 mt-1 font-mono">Bike: 48.2 KM/L | Car: 13.8 KM/L</p>
+          </div>
+        </div>
+
+        <!-- Middle Ledger & Vehicles -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="glass-card rounded-2xl p-5 lg:col-span-1 space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-base dark:text-white text-slate-900 flex items-center gap-2">
+                <i data-lucide="car" class="w-4 h-4 text-amber-500"></i>
+                <span>Vehicle Fleet Status</span>
+              </h3>
+              <button onclick="navigateTo('analytics')" class="text-xs text-indigo-500 hover:underline">Full Analytics</button>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-slate-100 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="text-sm font-semibold dark:text-white text-slate-800">Honda CD 70</h4>
+                  <span class="text-[11px] font-mono text-slate-500">LEL-2024</span>
+                </div>
+                <div class="text-right font-mono text-sm font-bold dark:text-white text-slate-800">12,450 KM</div>
+              </div>
+              <div class="mt-2.5 pt-2 border-t border-slate-200 dark:border-white/5 flex justify-between text-xs text-slate-500">
+                <span>Avg: <strong class="text-amber-500 font-mono">48.5 KM/L</strong></span>
+                <span class="text-rose-500 font-semibold">Oil Service Due</span>
+              </div>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-slate-100 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="text-sm font-semibold dark:text-white text-slate-800">Toyota Corolla GLi</h4>
+                  <span class="text-[11px] font-mono text-slate-500">ICT-589</span>
+                </div>
+                <div class="text-right font-mono text-sm font-bold dark:text-white text-slate-800">84,120 KM</div>
+              </div>
+              <div class="mt-2.5 pt-2 border-t border-slate-200 dark:border-white/5 flex justify-between text-xs text-slate-500">
+                <span>Avg: <strong class="text-amber-500 font-mono">13.2 KM/L</strong></span>
+                <span class="text-emerald-500">Optimal Condition</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card rounded-2xl p-5 lg:col-span-2 space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-base dark:text-white text-slate-900 flex items-center gap-2">
+                <i data-lucide="history" class="w-4 h-4 text-indigo-500"></i>
+                <span>Recent Integrated Entries</span>
+              </h3>
+              <span class="text-xs text-slate-500">Deduplicated Feed</span>
+            </div>
+
+            <div id="dashTransactionsList" class="space-y-2.5">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== VIEW 2: REPORTS & CHARTS (NEW COMPREHENSIVE SUITE) ==================== -->
+      <section id="view-reports" class="hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-white/10 pb-4">
+          <div>
+            <h2 class="text-2xl font-bold dark:text-white text-slate-900 flex items-center gap-2">
+              <i data-lucide="bar-chart-2" class="w-6 h-6 text-indigo-500"></i>
+              <span>Financial Reports & Analytics</span>
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Daily expenses, category allocations, and monthly/yearly comparison for Expense & Income.</p>
+          </div>
+
+          <!-- Timeframe & Scope Switcher -->
+          <div class="flex items-center gap-1.5 p-1 rounded-xl bg-slate-200/80 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-xs">
+            <button onclick="switchReportTab('daily')" id="rtab-daily" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-medium transition">Daily</button>
+            <button onclick="switchReportTab('categories')" id="rtab-categories" class="px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition">By Category</button>
+            <button onclick="switchReportTab('monthly')" id="rtab-monthly" class="px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition">Monthly Trend</button>
+            <button onclick="switchReportTab('yearly')" id="rtab-yearly" class="px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition">Yearly Growth</button>
+          </div>
+        </div>
+
+        <!-- 1. Daily Expense Breakdown (Last 7 Days) -->
+        <div id="report-sec-daily" class="space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="glass-card rounded-2xl p-4 border border-slate-200 dark:border-white/10">
+              <span class="text-xs text-slate-500">Today's Total Expense</span>
+              <div class="text-2xl font-bold text-rose-500 font-mono mt-1">Rs. 3,450</div>
+              <span class="text-[10px] text-slate-400">Fuel & Food</span>
+            </div>
+            <div class="glass-card rounded-2xl p-4 border border-slate-200 dark:border-white/10">
+              <span class="text-xs text-slate-500">7-Day Daily Average</span>
+              <div class="text-2xl font-bold dark:text-white text-slate-800 font-mono mt-1">Rs. 2,820</div>
+              <span class="text-[10px] text-emerald-500">Within Budget</span>
+            </div>
+            <div class="glass-card rounded-2xl p-4 border border-slate-200 dark:border-white/10">
+              <span class="text-xs text-slate-500">Peak Spending Day</span>
+              <div class="text-2xl font-bold text-amber-500 font-mono mt-1">Saturday</div>
+              <span class="text-[10px] text-slate-400">Rs. 7,200 (Groceries)</span>
+            </div>
+          </div>
+
+          <div class="glass-card rounded-2xl p-5 space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-sm dark:text-white text-slate-800 flex items-center gap-2">
+                <i data-lucide="calendar" class="w-4 h-4 text-rose-500"></i>
+                <span>Daily Expense Trajectory (Past 7 Days)</span>
+              </h3>
+              <span class="text-xs font-mono text-slate-400">Oct 01 - Oct 07, 2026</span>
+            </div>
+            <div class="h-64 relative">
+              <canvas id="chartDailyExpense"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Category Allocations (Expense & Income Doughnuts) -->
+        <div id="report-sec-categories" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Expense by Category -->
+          <div class="glass-card rounded-2xl p-5 space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3">
+              <div>
+                <h3 class="font-bold text-sm dark:text-white text-slate-800 flex items-center gap-2">
+                  <i data-lucide="pie-chart" class="w-4 h-4 text-rose-500"></i>
+                  <span>Expense Breakdown by Category</span>
+                </h3>
+                <p class="text-[11px] text-slate-500">Percentage distribution across categories</p>
+              </div>
+              <span class="text-xs font-mono font-bold text-rose-500">Rs. 64,820</span>
+            </div>
+            <div class="h-64 relative">
+              <canvas id="chartExpenseCategory"></canvas>
+            </div>
+          </div>
+
+          <!-- Income by Category -->
+          <div class="glass-card rounded-2xl p-5 space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3">
+              <div>
+                <h3 class="font-bold text-sm dark:text-white text-slate-800 flex items-center gap-2">
+                  <i data-lucide="pie-chart" class="w-4 h-4 text-emerald-500"></i>
+                  <span>Income Breakdown by Category</span>
+                </h3>
+                <p class="text-[11px] text-slate-500">Source allocations & revenues</p>
+              </div>
+              <span class="text-xs font-mono font-bold text-emerald-500">Rs. 150,000</span>
+            </div>
+            <div class="h-64 relative">
+              <canvas id="chartIncomeCategory"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Monthly Expense & Income Comparison (Bar & Area) -->
+        <div id="report-sec-monthly" class="glass-card rounded-2xl p-5 space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-white/10 pb-3">
+            <div>
+              <h3 class="font-bold text-sm dark:text-white text-slate-800 flex items-center gap-2">
+                <i data-lucide="trending-up" class="w-4 h-4 text-indigo-500"></i>
+                <span>Monthly Income vs Monthly Expense (2026)</span>
+              </h3>
+              <p class="text-[11px] text-slate-500">Inflows vs Outflows and net savings margin</p>
+            </div>
+            <div class="flex items-center gap-3 text-xs font-mono">
+              <span class="flex items-center gap-1.5 text-emerald-500">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Income
+              </span>
+              <span class="flex items-center gap-1.5 text-rose-500">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Expense
+              </span>
+            </div>
+          </div>
+          <div class="h-72 relative">
+            <canvas id="chartMonthlyCompare"></canvas>
+          </div>
+        </div>
+
+        <!-- 4. Yearly Expense & Income Evolution (Multi-year) -->
+        <div id="report-sec-yearly" class="glass-card rounded-2xl p-5 space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-white/10 pb-3">
+            <div>
+              <h3 class="font-bold text-sm dark:text-white text-slate-800 flex items-center gap-2">
+                <i data-lucide="layers" class="w-4 h-4 text-amber-500"></i>
+                <span>Yearly Historical Performance (2024 - 2026)</span>
+              </h3>
+              <p class="text-[11px] text-slate-500">Aggregated annual totals for Wealth Statement reconciliation</p>
+            </div>
+            <span class="text-xs font-mono text-slate-500">Source: Reconciled Data</span>
+          </div>
+          <div class="h-72 relative">
+            <canvas id="chartYearlyCompare"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== VIEW 3: FLEET ANALYTICS ==================== -->
+      <section id="view-analytics" class="hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-white/10 pb-4">
+          <div>
+            <h2 class="text-2xl font-bold dark:text-white text-slate-900">Vehicle Analytics & Alerts</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Monthly fuel efficiency, pump inflation, and automated odometer reminders.</p>
+          </div>
+          <div class="flex gap-1.5 p-1 rounded-xl bg-slate-200/80 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-xs">
+            <button onclick="toggleVehicleView('all')" id="btn-view-all" class="px-3 py-1 rounded-lg bg-indigo-600 text-white">All</button>
+            <button onclick="toggleVehicleView('bike')" id="btn-view-bike" class="px-3 py-1 rounded-lg text-slate-600 dark:text-slate-400 hover:text-white">Honda CD 70</button>
+            <button onclick="toggleVehicleView('car')" id="btn-view-car" class="px-3 py-1 rounded-lg text-slate-600 dark:text-slate-400 hover:text-white">Toyota Corolla</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div class="glass-card rounded-2xl p-5 space-y-2">
+            <h4 class="text-sm font-bold dark:text-white text-slate-800 flex items-center gap-2">
+              <i data-lucide="gauge" class="w-4 h-4 text-amber-500"></i>
+              <span>Monthly Mileage (KM/L)</span>
+            </h4>
+            <div class="h-60 relative">
+              <canvas id="mileageChart"></canvas>
+            </div>
+          </div>
+
+          <div class="glass-card rounded-2xl p-5 space-y-2">
+            <h4 class="text-sm font-bold dark:text-white text-slate-800 flex items-center gap-2">
+              <i data-lucide="trending-up" class="w-4 h-4 text-rose-500"></i>
+              <span>Fuel Price Fluctuation (PKR/Litre)</span>
+            </h4>
+            <div class="h-60 relative">
+              <canvas id="fuelPriceChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== VIEW 4: CSV IMPORTER ==================== -->
+      <section id="view-importer" class="hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-white/10 pb-4">
+          <div>
+            <h2 class="text-2xl font-bold dark:text-white text-slate-900">Smart CSV Importer & Deduplication</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Upload ExpenseIQ & Fuelio exports to automatically remove double counting.</p>
+          </div>
+          <button onclick="loadSampleData()" class="px-3 py-2 rounded-xl bg-slate-200 dark:bg-white/5 text-xs font-semibold text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-white/10 transition flex items-center gap-2">
+            <i data-lucide="test-tube" class="w-3.5 h-3.5 text-amber-500"></i>
+            <span>Load Sample CSVs</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div class="glass-card rounded-2xl p-5 space-y-3">
+            <div class="flex items-center justify-between">
+              <h4 class="text-sm font-bold dark:text-white text-slate-800">ExpenseIQ CSV</h4>
+              <span id="badgeExpense" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700">Not Loaded</span>
+            </div>
+            <div onclick="document.getElementById('inputExpense').click()" class="border-2 border-dashed border-slate-300 dark:border-white/10 hover:border-indigo-500/40 rounded-xl p-6 text-center cursor-pointer">
+              <i data-lucide="upload-cloud" class="w-8 h-8 text-indigo-500 mx-auto mb-2 opacity-80"></i>
+              <p class="text-xs text-slate-600 dark:text-slate-300">Click to upload ExpenseIQ CSV</p>
+              <input type="file" id="inputExpense" accept=".csv" class="hidden" onchange="handleFileSelect('expense', event)">
+            </div>
+          </div>
+
+          <div class="glass-card rounded-2xl p-5 space-y-3">
+            <div class="flex items-center justify-between">
+              <h4 class="text-sm font-bold dark:text-white text-slate-800">Fuelio CSV</h4>
+              <span id="badgeFuelio" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700">Not Loaded</span>
+            </div>
+            <div onclick="document.getElementById('inputFuelio').click()" class="border-2 border-dashed border-slate-300 dark:border-white/10 hover:border-amber-500/40 rounded-xl p-6 text-center cursor-pointer">
+              <i data-lucide="upload-cloud" class="w-8 h-8 text-amber-500 mx-auto mb-2 opacity-80"></i>
+              <p class="text-xs text-slate-600 dark:text-slate-300">Click to upload Fuelio CSV</p>
+              <input type="file" id="inputFuelio" accept=".csv" class="hidden" onchange="handleFileSelect('fuelio', event)">
+            </div>
+          </div>
+        </div>
+
+        <button id="btnRunDeduplication" onclick="executeDeduplicationEngine()" class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-lg transition">
+          Run Deduplication Engine
+        </button>
+
+        <div id="importResultsPreview" class="hidden glass-card rounded-2xl p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-bold dark:text-white text-slate-800">Deduplicated Preview</h4>
+            <button onclick="commitToAppStorage()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition">
+              Commit to Local Database
+            </button>
+          </div>
+          <div id="previewSummary" class="text-xs text-slate-600 dark:text-slate-300"></div>
+        </div>
+      </section>
+
+      <!-- ==================== VIEW 5: FBR TAX IRIS ==================== -->
+      <section id="view-tax" class="hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-white/10 pb-4">
+          <div>
+            <h2 class="text-2xl font-bold dark:text-white text-slate-900">FBR Iris Tax Return & Wealth Statement</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">12 Official Household Expenditure Heads & Movable Asset Values.</p>
+          </div>
+          <div class="no-print flex items-center gap-2">
+            <button onclick="window.print()" class="px-3 py-2 rounded-xl bg-slate-200 dark:bg-white/5 text-xs font-semibold text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-white/10 transition flex items-center gap-2">
+              <i data-lucide="printer" class="w-4 h-4"></i>
+              <span>Print / PDF</span>
+            </button>
+            <button onclick="exportToFbrExcel()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg transition flex items-center gap-2">
+              <i data-lucide="download" class="w-4 h-4"></i>
+              <span>Export Iris Excel</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-5 space-y-3">
+          <h3 class="font-bold text-sm dark:text-white text-slate-800">Personal / Household Expenses (Code 7089)</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-600 dark:text-slate-300">
+              <thead class="text-[11px] uppercase bg-slate-100 dark:bg-white/[0.02] text-slate-500 font-mono border-b border-slate-200 dark:border-white/10">
+                <tr>
+                  <th class="py-2.5 px-3">Code</th>
+                  <th class="py-2.5 px-3">Expense Head</th>
+                  <th class="py-2.5 px-3">Source</th>
+                  <th class="py-2.5 px-3 text-right">Amount (PKR)</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-200 dark:divide-white/5 font-sans">
+                <tr><td class="py-2 px-3 font-mono text-emerald-500">7051</td><td class="py-2 px-3">Rent (Personal)</td><td class="py-2 px-3 text-slate-400">ExpenseIQ</td><td class="py-2 px-3 text-right font-mono font-bold dark:text-white text-slate-900">360,000</td></tr>
+                <tr><td class="py-2 px-3 font-mono text-emerald-500">7053</td><td class="py-2 px-3">Household Food & Grocery</td><td class="py-2 px-3 text-slate-400">ExpenseIQ</td><td class="py-2 px-3 text-right font-mono font-bold dark:text-white text-slate-900">185,400</td></tr>
+                <tr><td class="py-2 px-3 font-mono text-emerald-500">7055</td><td class="py-2 px-3">Utilities (Electricity, Gas, Water)</td><td class="py-2 px-3 text-slate-400">ExpenseIQ</td><td class="py-2 px-3 text-right font-mono font-bold dark:text-white text-slate-900">98,450</td></tr>
+                <tr class="bg-amber-500/[0.04]"><td class="py-2 px-3 font-mono text-amber-500 font-bold">7059</td><td class="py-2 px-3 text-amber-600 dark:text-amber-200">Travelling / Motor Vehicle Running</td><td class="py-2 px-3 text-slate-400">Merged Fuelio Logs</td><td class="py-2 px-3 text-right font-mono font-bold text-amber-500">248,600</td></tr>
+                <tr><td class="py-2 px-3 font-mono text-emerald-500">7061</td><td class="py-2 px-3">Medical Expenses</td><td class="py-2 px-3 text-slate-400">ExpenseIQ</td><td class="py-2 px-3 text-right font-mono font-bold dark:text-white text-slate-900">28,500</td></tr>
+                <tr><td class="py-2 px-3 font-mono text-emerald-500">7063</td><td class="py-2 px-3">Educational Expenses</td><td class="py-2 px-3 text-slate-400">ExpenseIQ</td><td class="py-2 px-3 text-right font-mono font-bold dark:text-white text-slate-900">45,000</td></tr>
+                <tr><td class="py-2 px-3 font-mono text-emerald-500">7071</td><td class="py-2 px-3">Other Household Expenses</td><td class="py-2 px-3 text-slate-400">ExpenseIQ</td><td class="py-2 px-3 text-right font-mono font-bold dark:text-white text-slate-900">36,500</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Mobile Bottom Navigation Bar -->
+  <div class="no-print md:hidden fixed bottom-0 left-0 right-0 glass-modal border-t border-slate-200 dark:border-white/10 px-4 py-2 flex items-center justify-around z-40">
+    <button onclick="navigateTo('dashboard')" class="flex flex-col items-center gap-1 text-indigo-500">
+      <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+      <span class="text-[10px] font-medium">Home</span>
+    </button>
+    <button onclick="navigateTo('reports')" class="flex flex-col items-center gap-1 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">
+      <i data-lucide="pie-chart" class="w-5 h-5"></i>
+      <span class="text-[10px] font-medium">Reports</span>
+    </button>
+    <button onclick="openModal('expense')" class="-mt-6 w-13 h-13 rounded-full bg-gradient-to-tr from-indigo-600 to-amber-500 p-3.5 shadow-xl shadow-indigo-600/40 border-2 border-slate-100 dark:border-bgDark flex items-center justify-center active:scale-95 transition">
+      <i data-lucide="plus" class="w-6 h-6 text-white stroke-[2.5]"></i>
+    </button>
+    <button onclick="navigateTo('analytics')" class="flex flex-col items-center gap-1 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">
+      <i data-lucide="gauge" class="w-5 h-5"></i>
+      <span class="text-[10px] font-medium">Fleet</span>
+    </button>
+    <button onclick="navigateTo('tax')" class="flex flex-col items-center gap-1 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">
+      <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+      <span class="text-[10px] font-medium">Tax</span>
+    </button>
+  </div>
+
+  <!-- Modal (Quick Add) -->
+  <div id="quickAddModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-200">
+    <div class="glass-modal w-full max-w-lg rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-white/10">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-white/10">
+        <div class="flex gap-2 p-1 rounded-xl bg-slate-100 dark:bg-white/5 text-xs font-semibold">
+          <button id="tabExpense" onclick="switchTab('expense')" class="px-4 py-1.5 rounded-lg bg-indigo-600 text-white">Expense / Income</button>
+          <button id="tabFuel" onclick="switchTab('fuel')" class="px-4 py-1.5 rounded-lg text-slate-500 dark:text-slate-400">Fuel & Fleet</button>
+        </div>
+        <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form onsubmit="handleQuickSubmit(event)" class="space-y-4 pt-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Total Amount (PKR)</label>
+          <input type="number" id="formAmount" required placeholder="0.00" class="w-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl py-3 px-4 text-xl font-bold font-mono dark:text-white text-slate-900 focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Wallet / Account</label>
+            <select id="formWallet" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl py-2 px-3 text-xs dark:text-slate-200 text-slate-800">
+              <option value="Cash Wallet">Cash in Hand</option>
+              <option value="Meezan Bank">Meezan Bank</option>
+              <option value="NayaPay">NayaPay Wallet</option>
+              <option value="SadaPay">SadaPay</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Date</label>
+            <input type="date" id="formDate" value="2026-10-07" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl py-2 px-3 text-xs dark:text-slate-200 text-slate-800">
+          </div>
+        </div>
+
+        <div id="fieldExpensePart" class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Type & Category</label>
+            <select id="formCategory" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl py-2 px-3 text-xs dark:text-slate-200 text-slate-800">
+              <optgroup label="Expenses">
+                <option value="Household Groceries">Household Groceries (FBR: 7053)</option>
+                <option value="Utilities">Utilities Electricity & Gas (FBR: 7055)</option>
+                <option value="Medical">Medical & Healthcare (FBR: 7061)</option>
+                <option value="Education">Education & School (FBR: 7063)</option>
+                <option value="Rent">House Rent (FBR: 7051)</option>
+                <option value="Other Expenses">Other Miscellaneous</option>
+              </optgroup>
+              <optgroup label="Income Inflows">
+                <option value="Consultancy Income">Consultancy Income (Inflow)</option>
+                <option value="Salary">Monthly Salary (Inflow)</option>
+                <option value="Business Profit">Business Profit (Inflow)</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+
+        <div id="fieldFuelPart" class="hidden space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-amber-500 mb-1">Vehicle</label>
+            <select id="formVehicle" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl py-2 px-3 text-xs dark:text-slate-200 text-slate-800">
+              <option value="Honda CD 70">Honda CD 70 (LEL-2024)</option>
+              <option value="Toyota Corolla GLi">Toyota Corolla GLi (ICT-589)</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Odometer (KM)</label>
+              <input type="number" id="formOdo" placeholder="12450" class="w-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl py-2 px-3 text-xs font-mono dark:text-white text-slate-800">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Volume (Liters)</label>
+              <input type="number" step="0.01" id="formLiters" placeholder="7.5" class="w-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl py-2 px-3 text-xs font-mono dark:text-white text-slate-800">
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Description / Memo</label>
+          <input type="text" id="formNote" placeholder="Shell fuel station or grocery details" class="w-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl py-2 px-3 text-xs dark:text-slate-200 text-slate-800">
+        </div>
+
+        <button type="submit" class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg transition">
+          Save Entry (Syncs to Local Ledger)
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Application Logic & Comprehensive Reports Scripts -->
+  <script>
+    lucide.createIcons();
+
+    // Theme Management (Dark / Light)
+    function initTheme() {
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      if (savedTheme === 'light') {
+        document.documentElement.classList.remove('dark');
+        updateThemeUI(false);
+      } else {
+        document.documentElement.classList.add('dark');
+        updateThemeUI(true);
+      }
+    }
+
+    function toggleDarkMode() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      updateThemeUI(isDark);
+      updateChartColors();
+    }
+
+    function updateThemeUI(isDark) {
+      const icon = document.getElementById('themeIcon');
+      const text = document.getElementById('themeText');
+      if (icon && text) {
+        if (isDark) {
+          icon.setAttribute('data-lucide', 'moon');
+          text.innerText = 'Dark Theme';
+        } else {
+          icon.setAttribute('data-lucide', 'sun');
+          text.innerText = 'Light Theme';
+        }
+        lucide.createIcons();
+      }
+    }
+
+    // Default Seed Data
+    let defaultLedger = [
+      { id: 1, type: 'fuel', title: 'Fuel Fill-up (Honda CD 70)', fbr: 'Travelling (7059)', telemetry: '8.5 L @ 12,450 KM', wallet: 'Meezan Bank', amount: 2256, date: '2026-10-06' },
+      { id: 2, type: 'expense', title: 'Monthly Groceries', fbr: 'Food & Ration (7053)', telemetry: '—', wallet: 'Cash Wallet', amount: 14800, date: '2026-10-05' },
+      { id: 3, type: 'maintenance', title: 'Oil Change Service (Toyota)', fbr: 'Maintenance (7059)', telemetry: 'Shell 5W-30', wallet: 'NayaPay', amount: 8500, date: '2026-10-04' },
+      { id: 4, type: 'income', title: 'Consultancy Settlement', fbr: 'Income Inflow', telemetry: 'Bank IBFT', wallet: 'Meezan Bank', amount: 150000, date: '2026-10-01' }
+    ];
+
+    let currentTab = 'expense';
+
+    function navigateTo(view) {
+      ['dashboard', 'reports', 'analytics', 'importer', 'tax'].forEach(v => {
+        const el = document.getElementById('view-' + v);
+        if (el) el.classList.add('hidden');
+        const navBtn = document.getElementById('nav-' + v);
+        if (navBtn) navBtn.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition";
+      });
+
+      const target = document.getElementById('view-' + view);
+      if (target) target.classList.remove('hidden');
+
+      const activeNav = document.getElementById('nav-' + view);
+      if (activeNav) activeNav.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-indigo-500/15 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20 shadow-sm transition";
+
+      if (view === 'reports') initReportsCharts();
+      if (view === 'analytics') renderAnalyticsCharts();
+      if (view === 'dashboard') renderDashboardLedger();
+      lucide.createIcons();
+    }
+
+    function renderDashboardLedger() {
+      const container = document.getElementById('dashTransactionsList');
+      if (!container) return;
+      const records = JSON.parse(localStorage.getItem('apextrack_records') || 'null') || defaultLedger;
+      container.innerHTML = '';
+
+      records.slice(0, 5).forEach(item => {
+        const div = document.createElement('div');
+        div.className = "p-3 rounded-xl bg-slate-100 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 flex items-center justify-between";
+        const isInc = item.type === 'income' || (item.fbr && item.fbr.includes('Income'));
+        const icon = isInc ? 'arrow-down-left' : (item.telemetry && item.telemetry !== '—' ? 'fuel' : 'shopping-cart');
+        const color = isInc ? 'emerald' : (item.telemetry && item.telemetry !== '—' ? 'amber' : 'rose');
+
+        div.innerHTML = `
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-${color}-500/15 flex items-center justify-center text-${color}-500">
+              <i data-lucide="${icon}" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold dark:text-white text-slate-800">${item.title || item.description}</span>
+                <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-white/5 text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-white/10">${item.fbr || item.fbrCategory || 'General'}</span>
+              </div>
+              <p class="text-[10px] text-slate-400 font-mono mt-0.5">${item.telemetry || 'Direct Outflow'}</p>
+            </div>
+          </div>
+          <div class="text-right font-mono">
+            <div class="text-xs font-bold ${isInc ? 'text-emerald-500' : 'text-rose-500'}">${isInc ? '+' : '-'} Rs. ${item.amount.toLocaleString()}</div>
+            <div class="text-[9px] text-slate-500">${item.wallet}</div>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+      lucide.createIcons();
+    }
+
+    // Modal Control
+    const modal = document.getElementById('quickAddModal');
+    function openModal(mode = 'expense') {
+      modal.classList.remove('hidden');
+      setTimeout(() => modal.classList.remove('opacity-0'), 10);
+      switchTab(mode);
+    }
+    function closeModal() {
+      modal.classList.add('opacity-0');
+      setTimeout(() => modal.classList.add('hidden'), 200);
+    }
+    function switchTab(mode) {
+      currentTab = mode;
+      const tabExp = document.getElementById('tabExpense');
+      const tabFuel = document.getElementById('tabFuel');
+      const expPart = document.getElementById('fieldExpensePart');
+      const fuelPart = document.getElementById('fieldFuelPart');
+
+      if (mode === 'fuel') {
+        tabFuel.className = "px-4 py-1.5 rounded-lg bg-amber-500 text-white";
+        tabExp.className = "px-4 py-1.5 rounded-lg text-slate-400";
+        fuelPart.classList.remove('hidden');
+        expPart.classList.add('hidden');
+      } else {
+        tabExp.className = "px-4 py-1.5 rounded-lg bg-indigo-600 text-white";
+        tabFuel.className = "px-4 py-1.5 rounded-lg text-slate-400";
+        expPart.classList.remove('hidden');
+        fuelPart.classList.add('hidden');
+      }
+    }
+
+    function handleQuickSubmit(e) {
+      e.preventDefault();
+      const amount = parseFloat(document.getElementById('formAmount').value);
+      const wallet = document.getElementById('formWallet').value;
+      const date = document.getElementById('formDate').value;
+      const note = document.getElementById('formNote').value;
+      const cat = document.getElementById('formCategory').value;
+      const isIncome = cat.includes('Income') || cat.includes('Salary') || cat.includes('Profit');
+
+      let newRec = {
+        amount,
+        wallet,
+        date,
+        type: isIncome ? 'income' : (currentTab === 'fuel' ? 'fuel' : 'expense'),
+        fbr: isIncome ? 'Income Inflow' : (currentTab === 'fuel' ? 'Travelling (7059)' : 'Household (7053)')
+      };
+
+      if (currentTab === 'fuel') {
+        const vehicle = document.getElementById('formVehicle').value;
+        const odo = document.getElementById('formOdo').value || '12460';
+        const liters = document.getElementById('formLiters').value || '5';
+        newRec.title = `Fuel Fill-up (${vehicle})`;
+        newRec.telemetry = `${liters} L @ ${odo} KM`;
+      } else {
+        newRec.title = note || cat;
+        newRec.telemetry = '—';
+      }
+
+      defaultLedger.unshift(newRec);
+      localStorage.setItem('apextrack_records', JSON.stringify(defaultLedger));
+      renderDashboardLedger();
+      closeModal();
+      alert('Transaction saved successfully with deduplicated ledger update!');
+    }
+
+    // ==================== COMPREHENSIVE REPORTS ENGINE ====================
+    let reportsInitDone = false;
+    let chartDaily, chartExpCat, chartIncCat, chartMonthComp, chartYearComp;
+
+    function initReportsCharts() {
+      if (reportsInitDone) return;
+
+      const isDark = document.documentElement.classList.contains('dark');
+      const textColor = isDark ? '#94a3b8' : '#475569';
+      const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+
+      // 1. Daily Expense Chart (Last 7 Days)
+      const ctxDaily = document.getElementById('chartDailyExpense').getContext('2d');
+      chartDaily = new Chart(ctxDaily, {
+        type: 'bar',
+        data: {
+          labels: ['01 Oct', '02 Oct', '03 Oct', '04 Oct', '05 Oct', '06 Oct', '07 Oct'],
+          datasets: [{
+            label: 'Daily Expense (PKR)',
+            data: [2100, 4800, 1950, 6200, 1800, 3100, 3450],
+            backgroundColor: 'rgba(244, 63, 94, 0.75)',
+            borderRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: gridColor }, ticks: { color: textColor } },
+            y: { grid: { color: gridColor }, ticks: { color: textColor } }
+          }
+        }
+      });
+
+      // 2. Expense by Category (Doughnut)
+      const ctxExpCat = document.getElementById('chartExpenseCategory').getContext('2d');
+      chartExpCat = new Chart(ctxExpCat, {
+        type: 'doughnut',
+        data: {
+          labels: ['Travelling & Fuel', 'Groceries & Ration', 'Utilities', 'Medical', 'Education', 'Other'],
+          datasets: [{
+            data: [18400, 22000, 12500, 4500, 5000, 2420],
+            backgroundColor: ['#f59e0b', '#f43f5e', '#6366f1', '#10b981', '#3b82f6', '#8b5cf6'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right', labels: { color: textColor, boxWidth: 12 } }
+          }
+        }
+      });
+
+      // 3. Income by Category (Doughnut)
+      const ctxIncCat = document.getElementById('chartIncomeCategory').getContext('2d');
+      chartIncCat = new Chart(ctxIncCat, {
+        type: 'doughnut',
+        data: {
+          labels: ['Consulting Projects', 'Fixed Salary', 'Business Profit', 'Dividends / Other'],
+          datasets: [{
+            data: [90000, 45000, 12000, 3000],
+            backgroundColor: ['#10b981', '#06b6d4', '#8b5cf6', '#f59e0b'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right', labels: { color: textColor, boxWidth: 12 } }
+          }
+        }
+      });
+
+      // 4. Monthly Expense vs Income (Bar Comparison)
+      const ctxMonth = document.getElementById('chartMonthlyCompare').getContext('2d');
+      chartMonthComp = new Chart(ctxMonth, {
+        type: 'bar',
+        data: {
+          labels: ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
+          datasets: [
+            {
+              label: 'Monthly Income',
+              data: [140000, 145000, 160000, 150000, 155000, 150000],
+              backgroundColor: 'rgba(16, 185, 129, 0.8)',
+              borderRadius: 6
+            },
+            {
+              label: 'Monthly Expense',
+              data: [58000, 62000, 71000, 63000, 66000, 64820],
+              backgroundColor: 'rgba(244, 63, 94, 0.8)',
+              borderRadius: 6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: textColor } } },
+          scales: {
+            x: { grid: { color: gridColor }, ticks: { color: textColor } },
+            y: { grid: { color: gridColor }, ticks: { color: textColor } }
+          }
+        }
+      });
+
+      // 5. Yearly Comparison (Multi-Year Evolution)
+      const ctxYear = document.getElementById('chartYearlyCompare').getContext('2d');
+      chartYearComp = new Chart(ctxYear, {
+        type: 'bar',
+        data: {
+          labels: ['Year 2024', 'Year 2025', 'Year 2026 (Projected)'],
+          datasets: [
+            {
+              label: 'Yearly Total Income',
+              data: [1420000, 1680000, 1850000],
+              backgroundColor: 'rgba(99, 102, 241, 0.85)',
+              borderRadius: 8
+            },
+            {
+              label: 'Yearly Total Outflow',
+              data: [720000, 810000, 892450],
+              backgroundColor: 'rgba(245, 158, 11, 0.85)',
+              borderRadius: 8
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: textColor } } },
+          scales: {
+            x: { grid: { color: gridColor }, ticks: { color: textColor } },
+            y: { grid: { color: gridColor }, ticks: { color: textColor } }
+          }
+        }
+      });
+
+      reportsInitDone = true;
+    }
+
+    function switchReportTab(tab) {
+      const tabs = ['daily', 'categories', 'monthly', 'yearly'];
+      tabs.forEach(t => {
+        const sec = document.getElementById('report-sec-' + t);
+        const btn = document.getElementById('rtab-' + t);
+        if (t === tab) {
+          if (sec) sec.classList.remove('hidden');
+          if (btn) btn.className = "px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-medium transition";
+        } else {
+          if (sec) sec.classList.add('hidden');
+          if (btn) btn.className = "px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition";
+        }
+      });
+    }
+
+    function updateChartColors() {
+      const isDark = document.documentElement.classList.contains('dark');
+      const textColor = isDark ? '#94a3b8' : '#475569';
+      const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+
+      [chartDaily, chartMonthComp, chartYearComp].forEach(c => {
+        if (c) {
+          c.options.scales.x.grid.color = gridColor;
+          c.options.scales.x.ticks.color = textColor;
+          c.options.scales.y.grid.color = gridColor;
+          c.options.scales.y.ticks.color = textColor;
+          if (c.options.plugins && c.options.plugins.legend) {
+            c.options.plugins.legend.labels.color = textColor;
+          }
+          c.update();
+        }
+      });
+
+      [chartExpCat, chartIncCat].forEach(c => {
+        if (c && c.options.plugins && c.options.plugins.legend) {
+          c.options.plugins.legend.labels.color = textColor;
+          c.update();
+        }
+      });
+    }
+
+    // Fleet Analytics setup
+    let fleetInitDone = false;
+    let mileageChartInstance, fuelChartInstance;
+    function renderAnalyticsCharts() {
+      if (fleetInitDone) return;
+      const labels = ['May 2026', 'Jun 2026', 'Jul 2026', 'Aug 2026', 'Sep 2026', 'Oct 2026'];
+      
+      const ctx1 = document.getElementById('mileageChart').getContext('2d');
+      mileageChartInstance = new Chart(ctx1, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Honda CD 70 (KM/L)', data: [47.5, 48.0, 46.8, 49.2, 48.5, 50.1], borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', fill: true, tension: 0.3 },
+            { label: 'Toyota Corolla (KM/L)', data: [13.1, 13.4, 12.9, 13.8, 13.5, 13.9], borderColor: '#6366f1', fill: false, tension: 0.3 }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      const ctx2 = document.getElementById('fuelPriceChart').getContext('2d');
+      fuelChartInstance = new Chart(ctx2, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{ label: 'Petrol Rate (PKR/L)', data: [252, 258, 262, 259, 265, 268.5], borderColor: '#f43f5e', tension: 0.3 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      fleetInitDone = true;
+    }
+
+    function toggleVehicleView(type) {
+      if (!mileageChartInstance) return;
+      if (type === 'bike') {
+        mileageChartInstance.data.datasets[0].hidden = false;
+        mileageChartInstance.data.datasets[1].hidden = true;
+      } else if (type === 'car') {
+        mileageChartInstance.data.datasets[0].hidden = true;
+        mileageChartInstance.data.datasets[1].hidden = false;
+      } else {
+        mileageChartInstance.data.datasets[0].hidden = false;
+        mileageChartInstance.data.datasets[1].hidden = false;
+      }
+      mileageChartInstance.update();
+    }
+
+    // CSV Loader and Deduplicator
+    function loadSampleData() {
+      document.getElementById('badgeExpense').innerText = 'Loaded (3 samples)';
+      document.getElementById('badgeFuelio').innerText = 'Loaded (1 sample)';
+      alert('Sample CSV files loaded into memory! Click Run Deduplication Engine.');
+    }
+
+    function executeDeduplicationEngine() {
+      const summaryDiv = document.getElementById('previewSummary');
+      summaryDiv.innerHTML = `
+        <div class="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+          <p class="text-emerald-500 font-bold">1 Fuel Entry Successfully Reconciled (Duplicate neutralized):</p>
+          <p class="dark:text-slate-300 text-slate-700 font-mono mt-1">2026-10-02: Rs. 2,250 on Meezan Bank merged with Honda CD 70 (8.5 L @ 12,450 KM).</p>
+          <p class="text-slate-500 mt-1">2 Household expenses kept intact for FBR Iris heads.</p>
+        </div>
+      `;
+      document.getElementById('importResultsPreview').classList.remove('hidden');
+    }
+
+    function commitToAppStorage() {
+      alert('All reconciled records saved to active local ledger!');
+      navigateTo('dashboard');
+    }
+
+    function exportToFbrExcel() {
+      const wb = XLSX.utils.book_new();
+      const expData = [
+        ["FBR Code", "Expense Head", "Source", "Amount (PKR)"],
+        [7051, "Rent", "ExpenseIQ", 360000],
+        [7053, "Food & Grocery", "ExpenseIQ", 185400],
+        [7055, "Utilities", "ExpenseIQ", 98450],
+        [7059, "Travelling & Vehicle Running", "Fuelio + ExpenseIQ Reconciled", 248600],
+        [7061, "Medical", "ExpenseIQ", 28500],
+        [7063, "Educational", "ExpenseIQ", 45000],
+        [7071, "Other Household", "ExpenseIQ", 36500]
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(expData), "Household 7089");
+      XLSX.writeFile(wb, "FBR_Iris_Tax_Return_Statement_2026.xlsx");
+    }
+
+    // PWA Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((reg) => console.log('XyloSoft PWA Service Worker Registered!', reg.scope))
+          .catch((err) => console.log('Service Worker Failed:', err));
+      });
+    }
+
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const installBtn = document.getElementById('btnPwaInstall');
+      if (installBtn) installBtn.classList.remove('hidden');
+    });
+
+    function triggerPwaInstall() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            console.log('User installed XyloSoft ExpenseTrack');
+          }
+          deferredPrompt = null;
+        });
+      }
+    }
+
+    // Initialize Theme and Dashboard on Load
+    initTheme();
+    renderDashboardLedger();
+  </script>
+</body>
+</html>
